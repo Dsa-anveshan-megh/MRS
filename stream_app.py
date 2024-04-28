@@ -1,15 +1,15 @@
 
 import pickle
 import streamlit as st
-import spotipy
-from spotipy.oauth2 import SpotifyClientCredentials
+import spotify
+from spotify.oauth2 import SpotifyClientCredentials
 
 CLIENT_ID = "70a9fb89662f4dac8d07321b259eaad7"
 CLIENT_SECRET = "4d6710460d764fbbb8d8753dc094d131"
 
 # Initialize the Spotify client
 client_credentials_manager = SpotifyClientCredentials(client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
-sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
+sp = spotify.Spotify(client_credentials_manager=client_credentials_manager)
 
 def get_song_album_cover_url(song_name, artist_name):
     search_query = f"track:{song_name} artist:{artist_name}"
