@@ -23,7 +23,7 @@ def recommend(musics):
     return recommended_music#, recommended_music_poster
 
 
-music_dict = pickle.load(open(r'"C:\Users\Darsh\OneDrive\Desktop\python projects\musicrec.pkl"', 'rb'))
+music_dict = pickle.load(open(r'C:\Users\Darsh\OneDrive\Desktop\python projects\musicrec.pkl', 'rb'))
 music = pd.DataFrame(music_dict)
 
 similarity = pickle.load(open(r'D:\Downloads\musirec.py', 'rb'))
