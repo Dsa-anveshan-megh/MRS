@@ -1,59 +1,83 @@
-import pickle
 import streamlit as st
-import requests
+from recommender import hybrid_recommend, get_metadata
+from youtubesearchpython import VideosSearch
 
-def fetch_poster(movie_id):
-    url = "https://api.themoviedb.org/3/movie/{}?api_key=8265bd1679663a7ea12ac168da84d2e8&language=en-US".format(movie_id)
-    data = requests.get(url)
-    data = data.json()
-    poster_path = data['poster_path']
-    full_path = "https://image.tmdb.org/t/p/w500/" + poster_path
-    return full_path
+dataset_url = 'https://www.kaggle.com/datasets/imuhammad/audio-features-and-lyrics-of-spotify-songs'
 
-def recommend(movie):
-    index = movies[movies['title'] == movie].index[0]
-    distances = sorted(list(enumerate(similarity[index])), reverse=True, key=lambda x: x[1])
-    recommended_movie_names = []
-    recommended_movie_posters = []
-    for i in distances[1:6]:
-        # fetch the movie poster
-        movie_id = movies.iloc[i[0]].movie_id
-        recommended_movie_posters.append(fetch_poster(movie_id))
-        recommended_movie_names.append(movies.iloc[i[0]].title)
-
-    return recommended_movie_names,recommended_movie_posters
-
-
-st.header('Movie Recommender System')
-movies = pickle.load(open('model/movie_list.pkl','rb'))
-similarity = pickle.load(open('model/similarity.pkl','rb'))
-
-movie_list = movies['title'].values
-selected_movie = st.selectbox(
-    "Type or select a movie from the dropdown",
-    movie_list
+st.set_page_config(
+    page_title='Customizable Music Recommendation System', 
+    page_icon='🎶',
+    menu_items={
+        'Get Help': None,
+        'Report a bug': 'https://github.com/N-Shar-ma/Customizable-Music-Recommendation-System/issues',
+        'About': f"### Project made as part of Microsoft Engage'22!\n#### Music Data sourced from [Kaggle]({dataset_url})"
+    }
 )
 
-if st.button('Show Recommendation'):
-    recommended_movie_names,recommended_movie_posters = recommend(selected_movie)
-    col1, col2, col3, col4, col5 = st.beta_columns(5)
-    with col1:
-        st.text(recommended_movie_names[0])
-        st.image(recommended_movie_posters[0])
-    with col2:
-        st.text(recommended_movie_names[1])
-        st.image(recommended_movie_posters[1])
-
-    with col3:
-        st.text(recommended_movie_names[2])
-        st.image(recommended_movie_posters[2])
-    with col4:
-        st.text(recommended_movie_names[3])
-        st.image(recommended_movie_posters[3])
-    with col5:
-        st.text(recommended_movie_names[4])
-        st.image(recommended_movie_posters[4])
+st.title('🎶 Customizable Music Recommendation System 🎶')
 
 
 
+# Persistent app state managment
 
+def change_song(index):
+    st.session_state['current_song_index'] = index
+
+if 'current_song_index' not in st.session_state:
+    change_song(1255)
+
+
+
+# Sidebar with customizing options
+
+st.sidebar.title('Choose:')
+
+option1 = 'Keep up with what\'s trending'
+option2 = 'Discover hidden gems'
+mode = st.sidebar.selectbox('Your mode of recommendations', (option1, option2))
+if(mode == option1):
+    prioritisePopular = True
+else:
+    prioritisePopular = False
+
+recommendations_count = st.sidebar.slider('Upto how many of each kind of recommendations would you like '
+'(lesser means more accurate but more means more variety!)', min_value=1, max_value=10, value=3)
+
+st.sidebar.write('Which kinds of recommendations you\'d like') # options added later below when adding songs
+
+
+
+# Main Content:
+
+
+# Showing current song
+
+current_song = get_metadata(st.session_state['current_song_index'])
+
+st.write(f'## {current_song["track_name"]} - {current_song["track_artist"]}')
+
+youtube_search = VideosSearch(f'## {current_song["track_name"]} - {current_song["track_artist"]}', limit = 1)
+youtube_id = youtube_search.result()['result'][0]['id'] # getting youtube link
+thumbnail_url = youtube_search.result()['result'][0]['thumbnails'][0]['url'] # getting youtube thumbnail
+
+st.write(f'[![YouTube thumbnail]({thumbnail_url})](https://www.youtube.com/watch?v={youtube_id})')
+st.write(f'[Hear on YouTube](https://www.youtube.com/watch?v={youtube_id})')
+
+with st.expander('Show lyrics'):
+    st.write(current_song['lyrics'])
+
+
+# Retreiving and showing recommendations as per user's choices
+
+recommendations = hybrid_recommend(st.session_state['current_song_index'], recommendations_count, prioritisePopular=prioritisePopular)
+
+for recommendation_type, songs in recommendations.items():
+    if not st.sidebar.checkbox(recommendation_type, value=True):
+        continue
+    if(len(songs) == 0): # do not show a recommendation type if it has no songs
+        continue
+    st.write(f'#### {recommendation_type.title()}')
+    with st.container():
+        for song in songs:
+            st.write(f'- {song["track_name"]} - {song["track_artist"]}')
+            st.button("listen", key=str(song['index'])+recommendation_type, on_click=change_song, args=(song['index'],))
